@@ -1,0 +1,5 @@
+substitutions:
+  devicename: hms3
+  upper_devicename: HMS3
+
+<<: !include hms_common.yaml

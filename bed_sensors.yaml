@@ -1,0 +1,100 @@
+esphome:
+  name: bed
+  name_add_mac_suffix: true
+
+esp32:
+  board: esp32doit-devkit-v1
+  framework:
+    type: esp-idf
+
+<<: !include common.yaml
+
+esp32_ble_tracker:
+  scan_parameters:
+    interval: 1100ms
+    window: 1100ms
+    active: true
+
+bluetooth_proxy:
+  active: true
+
+i2c:
+  - id: bus_a
+    sda: GPIO21
+    scl: GPIO22
+    scan: true
+
+binary_sensor:
+  - platform: gpio
+    pin: GPIO23
+    name: "PIR Sensor"
+    device_class: motion
+  - platform: ble_presence
+    mac_address: FC:2A:B6:6B:76:8C
+    name: Vincents Mi Band
+  - platform: ble_presence
+    mac_address: C1:09:02:04:3A:3E
+    name: Jess Mi Band
+
+sensor:
+  - platform: bme680
+    temperature:
+      name: "Temperature"
+      oversampling: 16x
+    pressure:
+      name: "Pressure"
+    humidity:
+      name: "Humidity"
+    gas_resistance:
+      name: "Gas Resistance"
+    address: 0x77
+    update_interval: 60s
+  - platform: bh1750
+    name: "BH1750 Illuminance"
+    update_interval: 1s
+  - platform: xiaomi_miscale
+    mac_address: '88:0F:10:94:6A:7F'
+    weight:
+      name: "Xiaomi Mi Scale Weight"
+      id: weight_miscale
+      on_value:
+        then:
+          - lambda: |-
+              if (id(weight_miscale).state >= 12 && id(weight_miscale).state <= 20) {
+                return id(weight_user1).publish_state(x);}
+              else if (id(weight_miscale).state >= 20.01 && id(weight_miscale).state <= 55) {
+                return id(weight_user2).publish_state(x);}
+              else if (id(weight_miscale).state >= 55.01 && id(weight_miscale).state <= 62) {
+                return id(weight_user4).publish_state(x);}
+              else if (id(weight_miscale).state >= 62.01 && id(weight_miscale).state <= 83) {
+                return id(weight_user3).publish_state(x);}
+  - platform: template
+    name: Weight Squeels
+    id: weight_user1
+    unit_of_measurement: 'kg'
+    icon: mdi:weight-kilogram
+    accuracy_decimals: 2
+  - platform: template
+    name: Weight Dio
+    id: weight_user2
+    unit_of_measurement: 'kg'
+    icon: mdi:weight-kilogram
+    accuracy_decimals: 2
+  - platform: template
+    name: Weight Vincent
+    id: weight_user3
+    unit_of_measurement: 'kg'
+    icon: mdi:weight-kilogram
+    accuracy_decimals: 2
+  - platform: template
+    name: Weight Jess
+    id: weight_user4
+    unit_of_measurement: 'kg'
+    icon: mdi:weight-kilogram
+    accuracy_decimals: 2
+  - platform: ble_rssi
+    mac_address: FC:2A:B6:6B:76:8C
+    name: Vincents Mi Band RSSI
+  - platform: ble_rssi
+    mac_address: C1:09:02:04:3A:3E
+    name: Jess Mi Band RSSI

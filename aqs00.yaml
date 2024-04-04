@@ -1,0 +1,129 @@
+esphome:
+  name: aqs00
+  platform: ESP8266
+  board: nodemcuv2
+  on_boot:
+    priority: 600.0
+    then:
+      - light.turn_on:
+          id: sensorlight
+          brightness: 75%
+          effect: SensorEffect
+
+logger:
+  baud_rate: 0
+
+api:
+  encryption:
+    key: !secret api_key
+
+ota:
+  password: !secret ota_password
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  fast_connect: on
+  use_address: 192.168.1.161
+  domain: ".ber.section.me"
+
+time:
+  - platform: homeassistant
+    id: homeassistant_time
+
+web_server:
+  port: 80
+
+prometheus:
+
+captive_portal:
+
+i2c:
+  sda: GPIO4
+  scl: GPIO5
+  scan: true
+  id: bus_a
+
+uart:
+  tx_pin: GPIO3
+  rx_pin: GPIO1
+  baud_rate: 9600
+
+sensor:
+  - platform: sds011
+    id: pm_sensor
+    pm_2_5:
+      id: pm25
+      name: "Particulate Matter <2.5µm Concentration"
+    pm_10_0:
+      id: pm10
+      name: "Particulate Matter <10.0µm Concentration"
+    update_interval: 2min
+
+  - platform: bme280_i2c
+    temperature:
+      name: "Temperature"
+      oversampling: 16x
+      filters:
+      - multiply: 0.9016
+    pressure:
+      name: "Pressure"
+    humidity:
+      name: "Humidity"
+    address: 0x77
+    update_interval: 60s
+
+  - platform: uptime
+    name: "AQS0 Uptime"
+
+  - platform: wifi_signal
+    name: "AQS0 WiFi Signal"
+    update_interval: 15s
+
+light:
+  - platform: neopixelbus
+    variant: APA106
+    pin: GPIO15
+    num_leds: 1
+    type: GRB
+    name: "Air Quality"
+    id: sensorlight # Assign an ID
+
+    on_turn_on:
+      then:
+        - light.control:
+            id: sensorlight
+            effect: "SensorEffect"
+    entity_category: config
+    effects:
+      - addressable_lambda:
+          name: "SensorEffect"
+          update_interval: 5s
+          lambda: |-
+
+            if(!id(pm25).has_state()) {
+              it[0]=Color(255,255,255);
+            } else {
+              int airQualityValue=id(pm25).state;
+              int red = 255;
+              int blue = 255;
+              int green = 255; 
+              if (airQualityValue < 10) {
+                red = 0;
+                green = 255;
+                blue = 0;
+              }
+              // Above 10, it gradually turns orange, and over 35 it should be red
+              else if (airQualityValue >= 10 && airQualityValue <= 35) {
+                // Calculate the transition from green to red
+                green = map(airQualityValue, 10, 35, 255, 0);
+                red = map(airQualityValue, 10, 35, 0, 255);
+                blue = 0;
+              } else {
+                red = 255;
+                green = 0;
+                blue = 0;
+              }
+
+              it[0] = Color(red,green,blue);
+            }

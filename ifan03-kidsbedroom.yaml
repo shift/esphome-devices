@@ -1,0 +1,129 @@
+substitutions:
+  device_name: ifan03_1
+  friendly_name: Kids iFan03
+  userpass: !secret ota_password
+  wifi_pass: !secret wifi_password
+  ssid: !secret wifi_ssid
+
+  
+wifi:
+  ssid: "${ssid}"
+  password: "${wifi_pass}"
+  use_address: 192.168.1.43
+  ap:
+    ssid: "${friendly_name}"
+    password: "${userpass}"
+
+captive_portal:
+
+logger:
+
+web_server:
+  port: 80
+
+api:
+  encryption:
+    key: !secret encryption_key
+
+ota:
+  password: "${userpass}"
+
+esphome:
+  name: "${device_name}"
+  platform: ESP8266
+  board: esp01_1m
+  includes:
+    - ifan03.h
+  on_boot:
+    priority: 225
+    # turn off the light as early as possible
+    then:
+      - light.turn_on: ${device_name}_light
+
+
+output:
+  - platform: custom
+    type: float
+    outputs:
+      id: fanoutput
+    lambda: |-
+      auto ${device_name}_fan = new IFan03Output();
+      App.register_component(${device_name}_fan);
+      return {${device_name}_fan};
+
+  - platform: gpio
+    pin: GPIO9
+    inverted: True
+    id: light_output
+
+light:
+  - platform: binary
+    name: "${friendly_name} Light"
+    output: light_output
+    id: ${device_name}_light
+
+switch:
+  - platform: template
+    id: update_fan_speed
+    optimistic: True
+    turn_on_action:
+      then:
+        - delay: 200ms
+        - if:
+            condition:
+              and:
+                - switch.is_off: fan_relay1
+                - switch.is_off: fan_relay2
+                - switch.is_off: fan_relay3
+            then:
+              - fan.turn_off: ${device_name}_fan
+        - if:
+            condition:
+              and:
+                - switch.is_on: fan_relay1
+                - switch.is_off: fan_relay2
+                - switch.is_off: fan_relay3
+            then:
+              - fan.turn_on:
+                  id: ${device_name}_fan
+                  speed: 1
+        - if:
+            condition:
+              and:
+                - switch.is_on: fan_relay1
+                - switch.is_on: fan_relay2
+                - switch.is_off: fan_relay3
+            then:
+              - fan.turn_on:
+                  id: ${device_name}_fan
+                  speed: 2
+        - if:
+            condition:
+              and:
+                - switch.is_on: fan_relay1
+                - switch.is_off: fan_relay2
+                - switch.is_on: fan_relay3
+            then:
+              - fan.turn_on:
+                  id: ${device_name}_fan
+                  speed: 3
+        - switch.turn_off: update_fan_speed
+
+  - platform: gpio
+    pin: GPIO14
+    id: fan_relay1
+
+  - platform: gpio
+    pin: GPIO12
+    id: fan_relay2
+
+  - platform: gpio
+    pin: GPIO15
+    id: fan_relay3
+
+fan:
+  - platform: speed
+    output: fanoutput
+    id: ${device_name}_fan
+    name: "${friendly_name} Fan"
+    speed_count: 3

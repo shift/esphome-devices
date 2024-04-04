@@ -1,0 +1,9 @@
+substitutions:
+  devicename: sp111_04
+  upper_devicename: SP111 04
+  # Higher value gives lower watt readout
+  current_res: "0.00122"
+  # Lower value gives lower voltage readout
+  voltage_div: "764"
+
+<<: !include sp111_common.yaml

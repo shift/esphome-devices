@@ -1,0 +1,75 @@
+esphome:
+  name: $devicename
+  platform: ESP8266
+  board: nodemcuv2
+
+<<: !include common.yaml
+
+prometheus:
+
+captive_portal:
+
+i2c:
+  - sda: GPIO4
+    scl: GPIO5
+    id: bus_a
+
+sensor:
+  - platform: sht3xd
+    i2c_id: bus_a
+    address: 0x44
+    
+    temperature:
+      name: "$upper_devicename Temperature"
+      id: "temperature"
+      filters:
+      - offset: -10.0
+    humidity:
+      name: "$upper_devicename Humidity"
+      id: "humidity"
+      filters:
+      - offset: 8.0
+    update_interval: 10s
+    
+  # MQ2 Smoke Gas Sensor
+  - platform: adc
+    pin: A0
+    name: "$upper_devicename Gas Sensor"
+    update_interval: 10s
+    #filters:
+    #  - multiply: 100
+        #unit_of_measurement: "%"
+    filters:
+     lambda: |- 
+       return (x * 1024/5);
+    unit_of_measurement: "ppm"  
+    icon: "mdi:percent" 
+
+  - platform: uptime
+    name: "$upper_devicename Uptime"
+
+  - platform: wifi_signal
+    name: "$upper_devicename WiFi Signal"
+    update_interval: 15s
+
+  - platform: template
+    name: "$upper_devicename Absolute Humidity"
+    lambda: |-
+      const float mw = 18.01534;    // molar mass of water g/mol
+      const float r = 8.31447215;   // Universal gas constant J/mol/K
+      return (6.112 * powf(2.718281828, (17.67 * id(temperature).state) /
+        (id(temperature).state + 243.5)) * id(humidity).state * mw) /
+        ((273.15 + id(temperature).state) * r); // in grams/m^3
+    accuracy_decimals: 2
+    update_interval: 15s
+    icon: 'mdi:water'
+    unit_of_measurement: 'g/m³'
+
+  - platform: template
+    name: "$upper_devicename Dew Point"
+    lambda: |-
+      return (243.5*(log(id(humidity).state/100)+((17.67*id(temperature).state)/
+      (243.5+id(temperature).state)))/(17.67-log(id(humidity).state/100)-
+      ((17.67*id(temperature).state)/(243.5+id(temperature).state))));
+    unit_of_measurement: °C
+    icon: 'mdi:thermometer-alert'
